@@ -37,7 +37,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q1",
         "label": "Question 1",
-        "bias": "Overconfidence Bias",
+        "bias": "Aşırı Güven Eğilimi (Overconfidence)",
         "story": (
             "You have joined a student investment committee that is reviewing FinTechX, a fast-growing digital "
             "payments startup. The company has added merchants quickly, app activity has been rising, and the mood "
@@ -51,7 +51,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q2",
         "label": "Question 2",
-        "bias": "Representativeness Bias",
+        "bias": "Temsil Etme Eğilimi (Representativeness Bias)",
         "story": (
             "Before you see revenue quality, margins, or cash flow, the moderator gives one striking detail: "
             "FinTechX's CEO previously held a senior role at Trendyol and is known for scaling digital products. "
@@ -70,7 +70,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q3",
         "label": "Question 3",
-        "bias": "Anchoring Bias",
+        "bias": "Çapalama ve Düzeltme (Anchoring Bias)",
         "story": (
             "The committee now reveals one simple number: FinTechX grew by 15% last year. You are not shown new "
             "guidance, competitor benchmarks, or any macroeconomic assumptions. Even so, that 15% figure becomes "
@@ -83,7 +83,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q4",
         "label": "Question 4",
-        "bias": "Availability Bias",
+        "bias": "Ulaşılabilirlik Eğilimi (Availability Bias)",
         "story": (
             "For the last two weeks, the financial media has been full of fintech bankruptcy stories, failed funding "
             "rounds, layoffs, and sharp market commentary about the sector. When FinTechX appears on screen, those "
@@ -97,7 +97,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q5",
         "label": "Question 5",
-        "bias": "Illusion of Control",
+        "bias": "Kontrol İllüzyonu (Illusion of Control)",
         "story": (
             "Imagine that, as an investor, you will receive regular access to FinTechX's financial statements every "
             "quarter. That sounds reassuring, and several people in the room start to feel that close monitoring would "
@@ -117,7 +117,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q6",
         "label": "Question 6",
-        "bias": "Cognitive Conflict",
+        "bias": "Bilişsel Çatışma (Cognitive Dissonance)",
         "story": (
             "Two signals arrive at the same time. In a presentation, the CFO says the business is doing well, demand "
             "remains strong, and management feels confident. A separate audit note, however, warns that the company's "
@@ -130,7 +130,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q7a",
         "label": "Question 7A",
-        "bias": "Attribution / Self-Serving Bias",
+        "bias": "Self-Attribution Bias",
         "story": (
             "Imagine that you personally invested in FinTechX and later lost money. When people reflect on their own "
             "losses, they often protect their self-image by blaming the market, timing, or luck more than their own "
@@ -148,7 +148,7 @@ QUESTIONS: List[Dict[str, object]] = [
     {
         "id": "q7b",
         "label": "Question 7B",
-        "bias": "Attribution / Self-Serving Bias",
+        "bias": "Self-Attribution Bias",
         "story": (
             "Now imagine that the exact same loss happened to a friend instead of you. In finance, people often judge "
             "others more harshly than themselves and become quicker to say the other person made avoidable mistakes. "
@@ -180,7 +180,7 @@ QUESTIONS: List[Dict[str, object]] = [
 
 
 BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
-    "Overconfidence Bias": {
+    "Aşırı Güven Eğilimi (Overconfidence)": {
         "observation": "Many students choose high confidence ranges such as 61-80% or even 81-100%.",
         "why": "People often overestimate their forecasting skill, market-reading ability, and personal judgment.",
         "impact": [
@@ -195,7 +195,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "How can overconfidence damage portfolio decisions?",
         ],
     },
-    "Representativeness Bias": {
+    "Temsil Etme Eğilimi (Representativeness Bias)": {
         "observation": "Students often infer that a strong executive profile automatically means a strong company outcome.",
         "why": "The brain uses a shortcut: good story, good company. That feels convincing even when data is missing.",
         "impact": [
@@ -209,7 +209,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "Do real investors also buy stories too easily?",
         ],
     },
-    "Anchoring Bias": {
+    "Çapalama ve Düzeltme (Anchoring Bias)": {
         "observation": "Answers often stay close to the 15% reference point that appeared first.",
         "why": "The first number becomes a mental anchor, and people usually adjust away from it too little.",
         "impact": [
@@ -223,7 +223,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "Why are first numbers so sticky in finance?",
         ],
     },
-    "Availability Bias": {
+    "Ulaşılabilirlik Eğilimi (Availability Bias)": {
         "observation": "Fresh negative news often pushes failure estimates higher, even without company-specific evidence.",
         "why": "The mind treats recent, vivid, easy-to-recall information as more probable than it really is.",
         "impact": [
@@ -237,7 +237,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "How can investors defend themselves from media-driven judgments?",
         ],
     },
-    "Illusion of Control": {
+    "Kontrol İllüzyonu (Illusion of Control)": {
         "observation": "Many students agree that more information means more control over risk.",
         "why": "People often confuse being informed with being in control, even though many risks stay outside investor influence.",
         "impact": [
@@ -251,7 +251,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "Why do investors still crave the feeling of control?",
         ],
     },
-    "Cognitive Conflict": {
+    "Bilişsel Çatışma (Cognitive Dissonance)": {
         "observation": "Optimistic management commentary often feels easier to accept than a difficult audit warning.",
         "why": "When information conflicts, the brain prefers the message that is simpler, warmer, or emotionally easier.",
         "impact": [
@@ -265,7 +265,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "How do professionals stay rational under conflicting signals?",
         ],
     },
-    "Attribution / Self-Serving Bias": {
+    "Self-Attribution Bias": {
         "observation": "People often blame outside conditions for their own losses but personal mistakes for someone else's.",
         "why": "The mind protects self-image by shifting blame away from the self while judging others more harshly.",
         "impact": [
