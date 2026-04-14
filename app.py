@@ -1,5 +1,4 @@
 import json
-import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -16,17 +15,11 @@ st.set_page_config(
 )
 
 
-# -----------------------------
-# Constants
-# -----------------------------
 TIME_LIMIT_SECONDS = 5 * 60
 LEADERBOARD_FILE = Path(__file__).with_name("fintechx_leaderboard.json")
-APP_VERSION = "2.0"
+APP_VERSION = "3.0"
 
 
-# -----------------------------
-# Styling
-# -----------------------------
 st.markdown(
     """
     <style>
@@ -57,7 +50,7 @@ st.markdown(
         max-width: 1180px;
     }
 
-    h1, h2, h3, h4, h5, h6, p, li, label, div {
+    h1, h2, h3, h4, h5, h6, p, li, label, div, span {
         color: var(--text);
     }
 
@@ -161,9 +154,10 @@ st.markdown(
     .question-card {
         background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 22px;
-        padding: 1.1rem;
+        border-radius: 24px;
+        padding: 1.2rem;
         margin-bottom: 1rem;
+        box-shadow: 0 14px 36px rgba(0,0,0,0.14);
     }
 
     .question-badge {
@@ -177,7 +171,19 @@ st.markdown(
         border-radius: 999px;
         background: rgba(124,58,237,0.18);
         border: 1px solid rgba(124,58,237,0.28);
-        margin-bottom: 0.65rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .question-title {
+        font-size: 1.18rem;
+        font-weight: 760;
+        margin-bottom: 0.25rem;
+    }
+
+    .question-note {
+        color: var(--muted);
+        font-size: 0.94rem;
+        margin-bottom: 1rem;
     }
 
     .timer-box {
@@ -192,6 +198,15 @@ st.markdown(
         color: var(--muted);
         font-size: 0.82rem;
         margin-bottom: 0.2rem;
+    }
+
+    .progress-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+        color: var(--muted);
+        font-size: 0.9rem;
     }
 
     .result-good {
@@ -231,14 +246,12 @@ st.markdown(
         padding: 0.7rem 1rem;
     }
 
-    .stTextInput input, .stTextArea textarea {
+    .stTextInput input {
         border-radius: 14px !important;
     }
 
-    div[data-baseweb="select"] > div,
-    div[role="radiogroup"],
-    .stSlider {
-        background: transparent;
+    div[role="radiogroup"] {
+        gap: 0.55rem;
     }
     </style>
     """,
@@ -246,111 +259,207 @@ st.markdown(
 )
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
+QUESTIONS: List[Dict[str, object]] = [
+    {
+        "id": "Q1",
+        "badge": "Question 1",
+        "title": "What do you estimate is the probability that FinTechX will grow by more than 20% in the next 1 year?",
+        "note": "Choose the range that best matches your estimate.",
+        "options": ["0%–20%", "21%–40%", "41%–60%", "61%–80%", "81%–100%"],
+    },
+    {
+        "id": "Q2",
+        "badge": "Question 2",
+        "title": "FinTechX's CEO is an experienced executive with a Trendyol background. Based on this, what is your first impression of the company's future performance?",
+        "note": "Choose the option that best matches your first impression.",
+        "options": ["Successful", "Moderate", "Unsuccessful", "I cannot decide with this information"],
+    },
+    {
+        "id": "Q3",
+        "badge": "Question 3",
+        "title": "FinTechX grew by 15% last year. What is your growth estimate for this year?",
+        "note": "Choose the range that best matches your estimate.",
+        "options": ["0%–5%", "6%–11%", "12%–20%", "21%–30%", "31% or more"],
+    },
+    {
+        "id": "Q4",
+        "badge": "Question 4",
+        "title": "During this period, fintech failures are frequently discussed in the media. What do you think is the probability that FinTechX will fail?",
+        "note": "Choose the range that best matches your estimate.",
+        "options": ["0%–10%", "11%–25%", "26%–39%", "40%–59%", "60% or more"],
+    },
+    {
+        "id": "Q5",
+        "badge": "Question 5",
+        "title": '"If I can regularly access FinTechX\'s financial statements, I believe I can control my risk."',
+        "note": "Choose one statement.",
+        "options": ["Strongly agree", "Agree", "Undecided", "Disagree", "Strongly disagree"],
+    },
+    {
+        "id": "Q6",
+        "badge": "Question 6",
+        "title": 'CFO: "The company is doing well." Audit report: "Cash flow is risky." Which source do you trust more?',
+        "note": "Choose the source you would trust first.",
+        "options": ["CFO", "Audit report", "Undecided"],
+    },
+    {
+        "id": "Q7A",
+        "badge": "Question 7A",
+        "title": "If you personally lost money, what would be the main reason?",
+        "note": "Choose the explanation that feels closest to your instinct.",
+        "options": [
+            "The market conditions were bad.",
+            "Unexpected news, regulation, or macro events hurt the investment.",
+            "I made a poor investment decision.",
+            "I took too much risk or did not research enough.",
+        ],
+    },
+    {
+        "id": "Q7B",
+        "badge": "Question 7B",
+        "title": "If your friend lost money, what would be the main reason?",
+        "note": "Choose the explanation that feels closest to your instinct.",
+        "options": [
+            "The market conditions were bad for my friend.",
+            "Unexpected news, regulation, or macro events hurt my friend's investment.",
+            "My friend made a poor investment decision.",
+            "My friend took too much risk or did not research enough.",
+        ],
+    },
+    {
+        "id": "Q8",
+        "badge": "Question 8",
+        "title": "FinTechX failed. Was this outcome easy to predict?",
+        "note": "Choose the statement that best matches your reaction.",
+        "options": ["Yes, it was obvious", "No, it was not obvious", "Not sure"],
+    },
+]
+
+
+BIAS_DETAILS: Dict[str, Dict[str, List[str] | str]] = {
+    "Question 1 – Overconfidence Bias": {
+        "observation": "Many students give estimates in the 60% to 90% range.",
+        "why": "People often overestimate their analysis skills, market forecasting accuracy, and ability to predict outcomes.",
+        "impact": [
+            "Taking too much risk",
+            "Trading too often",
+            "Holding losing positions for too long",
+            "Creating excessive portfolio volatility",
+            "Under-diversification",
+        ],
+        "discussion": [
+            "What emotion or logic led you to choose that range?",
+            "Did you think about how difficult a one-year growth forecast actually is?",
+            "Compared with a professional analyst, is 80% accuracy really realistic?",
+            "How can overconfidence affect investment decisions?",
+        ],
+    },
+    "Question 2 – Representativeness Bias": {
+        "observation": "The answer 'Successful' is often the most common choice.",
+        "why": "The mind uses a shortcut: 'Good CEO background → good company outcome.' It sounds reasonable, but it is not a sufficient statistical basis.",
+        "impact": [
+            "Startup bubbles",
+            "Too much faith in executive charisma",
+            "Opening positions with too little data",
+            "Investing in a story instead of performance",
+        ],
+        "discussion": [
+            "What pushed you toward this option?",
+            "Is it rational to make a forecast without financial data?",
+            "Do real investors make the same mistake?",
+        ],
+    },
+    "Question 3 – Anchoring and Adjustment": {
+        "observation": "Most estimates cluster near the previous year's 15% growth.",
+        "why": "The first number given becomes a reference point, and people usually adjust away from it too little.",
+        "impact": [
+            "Analyst target prices converging too closely",
+            "Overreliance on past performance",
+            "Slow adaptation to new information",
+            "Reluctance to rebalance portfolios",
+        ],
+        "discussion": [
+            "Was your estimate close to 15%?",
+            "Did you notice that the number influenced you?",
+            "If last year's growth had been 40%, how would your estimate change?",
+        ],
+    },
+    "Question 4 – Availability Bias": {
+        "observation": "When fintech failures are fresh in the news, students often choose much higher failure probabilities.",
+        "why": "The mind uses a shortcut: 'What I heard recently is more likely.' Easily recalled information can distort judgment.",
+        "impact": [
+            "Panic selling during crises",
+            "Exaggerated risk perception",
+            "Overstating the pricing effect of news sentiment",
+        ],
+        "discussion": [
+            "What news came to mind before answering?",
+            "Would your estimate change if those stories were not fresh in memory?",
+            "How can investors protect themselves from media influence?",
+        ],
+    },
+    "Question 5 – Illusion of Control": {
+        "observation": "Many students agree with the statement.",
+        "why": "People often confuse being informed with being in control. Financial statements help, but they do not remove regulation risk, competitive pressure, or macro shocks.",
+        "impact": [
+            "Taking positions that are too large",
+            "Risk-management mistakes driven by overconfidence",
+            "Misjudging complex products",
+        ],
+        "discussion": [
+            "Does seeing financial statements really create control?",
+            "What is the difference between information and control?",
+            "Do professional investors also fall into this trap?",
+        ],
+    },
+    "Question 6 – Cognitive Conflict": {
+        "observation": "Many students choose the CFO.",
+        "why": "Contradictory information creates tension. The mind often resolves it by choosing the more optimistic and emotionally comfortable message.",
+        "impact": [
+            "Ignoring bad news",
+            "Excessive optimism",
+            "Underestimating audit reports",
+        ],
+        "discussion": [
+            "How did the CFO's optimism affect you?",
+            "Why is the audit report harder to accept?",
+            "Why is it difficult to stay rational when information conflicts?",
+        ],
+    },
+    "Question 7 – Attribution / Self-Serving Bias": {
+        "observation": "People often blame the market for their own losses, but blame bad decisions when others lose money.",
+        "why": "People protect their self-image by attributing success to themselves and failure to outside factors, while judging others more harshly.",
+        "impact": [
+            "Failing to learn from personal mistakes",
+            "Distorted performance evaluation",
+            "Weaker accountability in investing",
+        ],
+        "discussion": [
+            "Why is it easier to soften your own mistake?",
+            "Why is it easier to blame your friend?",
+            "How can this bias affect portfolio managers?",
+        ],
+    },
+    "Question 8 – Hindsight Bias": {
+        "observation": "Many people say the result was obvious afterward.",
+        "why": "Once an outcome happens, the brain rewrites the past and makes the event look more predictable than it really was.",
+        "impact": [
+            "Stronger overconfidence",
+            "The illusion of 'I already knew it'",
+            "Poorer future risk analysis",
+        ],
+        "discussion": [
+            "Was it really obvious at the time?",
+            "Why does it feel clearer after the event?",
+            "How does this bias affect investor psychology?",
+        ],
+    },
+}
+
 
 def normalize_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text.strip().lower())
+    return " ".join(text.strip().lower().split())
 
-
-EXTERNAL_KEYWORDS = {
-    "market",
-    "economy",
-    "macro",
-    "news",
-    "volatility",
-    "crisis",
-    "rates",
-    "interest",
-    "inflation",
-    "regulation",
-    "luck",
-    "timing",
-    "sector",
-    "panic",
-    "conditions",
-    "competition",
-    "unexpected",
-    "external",
-    "government",
-    "policy",
-    "sentiment",
-    "piyasa",
-    "ekonomi",
-    "haber",
-    "şans",
-    "sans",
-    "kriz",
-    "faiz",
-    "enflasyon",
-    "regülasyon",
-    "regulasyon",
-    "sektör",
-    "sektor",
-}
-
-INTERNAL_KEYWORDS = {
-    "mistake",
-    "error",
-    "poor",
-    "bad",
-    "wrong",
-    "careless",
-    "greedy",
-    "emotional",
-    "risky",
-    "overconfident",
-    "ignored",
-    "didn't research",
-    "did not research",
-    "no research",
-    "discipline",
-    "strategy",
-    "decision",
-    "impatient",
-    "misread",
-    "hata",
-    "yanlış",
-    "yanlis",
-    "dikkatsiz",
-    "açgözlü",
-    "acgozlu",
-    "duygusal",
-    "riskli",
-    "özgüven",
-    "ozguven",
-    "araştır",
-    "arastir",
-    "disiplin",
-    "strateji",
-    "karar",
-}
-
-LIKERT_SCORE = {
-    "Strongly agree": 5,
-    "Agree": 4,
-    "Undecided": 3,
-    "Disagree": 2,
-    "Strongly disagree": 1,
-}
-
-
-if "player_name" not in st.session_state:
-    st.session_state.player_name = ""
-if "game_started" not in st.session_state:
-    st.session_state.game_started = False
-if "game_submitted" not in st.session_state:
-    st.session_state.game_submitted = False
-if "start_ts" not in st.session_state:
-    st.session_state.start_ts = None
-if "result_payload" not in st.session_state:
-    st.session_state.result_payload = None
-
-
-# -----------------------------
-# Persistence
-# -----------------------------
 
 def load_store() -> Dict[str, Dict]:
     if not LEADERBOARD_FILE.exists():
@@ -361,7 +470,6 @@ def load_store() -> Dict[str, Dict]:
         return {}
 
 
-
 def save_store(data: Dict[str, Dict]) -> None:
     LEADERBOARD_FILE.write_text(
         json.dumps(data, ensure_ascii=False, indent=2),
@@ -369,10 +477,8 @@ def save_store(data: Dict[str, Dict]) -> None:
     )
 
 
-
 def player_key(name: str) -> str:
     return normalize_text(name)
-
 
 
 def register_player(name: str) -> None:
@@ -392,26 +498,20 @@ def register_player(name: str) -> None:
     save_store(store)
 
 
-
 def mark_timeout(name: str, elapsed_seconds: int) -> None:
     store = load_store()
     key = player_key(name)
-    if key in store:
-        store[key]["status"] = "Time up"
-        store[key]["elapsed_seconds"] = elapsed_seconds
-        store[key]["submitted_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        store[key] = {
-            "name": name.strip(),
-            "status": "Time up",
-            "score": None,
-            "elapsed_seconds": elapsed_seconds,
-            "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "started_at": time.time() - elapsed_seconds,
-            "version": APP_VERSION,
-        }
+    previous = store.get(key, {})
+    store[key] = {
+        "name": name.strip(),
+        "status": "Time up",
+        "score": previous.get("score"),
+        "elapsed_seconds": elapsed_seconds,
+        "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "started_at": previous.get("started_at", time.time() - elapsed_seconds),
+        "version": APP_VERSION,
+    }
     save_store(store)
-
 
 
 def finish_player(name: str, score: int, elapsed_seconds: int) -> None:
@@ -440,12 +540,20 @@ def finish_player(name: str, score: int, elapsed_seconds: int) -> None:
             "version": APP_VERSION,
         }
     else:
-        # keep best score but update visible status
         previous["status"] = "Finished"
         store[key] = previous
 
     save_store(store)
 
+
+def reset_local_session() -> None:
+    st.session_state.player_name = ""
+    st.session_state.game_started = False
+    st.session_state.game_submitted = False
+    st.session_state.start_ts = None
+    st.session_state.result_payload = None
+    st.session_state.current_step = 0
+    st.session_state.answers = {}
 
 
 def format_seconds(seconds: int | None) -> str:
@@ -454,7 +562,6 @@ def format_seconds(seconds: int | None) -> str:
     minutes = int(seconds) // 60
     secs = int(seconds) % 60
     return f"{minutes:02d}:{secs:02d}"
-
 
 
 def get_leaderboard_rows() -> List[Dict[str, str | int]]:
@@ -477,7 +584,6 @@ def get_leaderboard_rows() -> List[Dict[str, str | int]]:
     return rows
 
 
-
 def get_participant_chips() -> str:
     store = load_store()
     participants = list(store.values())
@@ -491,79 +597,24 @@ def get_participant_chips() -> str:
     return "".join(chips) if chips else '<span class="footer-note">No participants yet.</span>'
 
 
-# -----------------------------
-# Analysis helpers
-# -----------------------------
-
-def keyword_hits(text: str, keywords: set) -> int:
-    t = normalize_text(text)
-    return sum(1 for kw in keywords if kw in t)
-
-
-
-def analyze_attribution(self_text: str, friend_text: str) -> Tuple[str, str, int]:
-    self_external = keyword_hits(self_text, EXTERNAL_KEYWORDS)
-    self_internal = keyword_hits(self_text, INTERNAL_KEYWORDS)
-    friend_external = keyword_hits(friend_text, EXTERNAL_KEYWORDS)
-    friend_internal = keyword_hits(friend_text, INTERNAL_KEYWORDS)
-
-    if (self_external >= self_internal + 1) and (friend_internal >= friend_external + 1):
-        return (
-            "Strong self-serving bias signal",
-            "You seem more likely to explain your own loss with outside factors, while explaining your friend's loss with personal mistakes.",
-            4,
-        )
-    if (self_external > self_internal) and (friend_internal > friend_external):
-        return (
-            "Moderate self-serving bias signal",
-            "Your wording suggests a softer version of the same pattern: external reasons for yourself, internal reasons for your friend.",
-            8,
-        )
-    if (self_internal > self_external) and (friend_internal > friend_external):
-        return (
-            "More self-critical pattern",
-            "You appear willing to assign personal responsibility to both yourself and your friend, which can reduce self-serving bias.",
-            12,
-        )
-    if (self_external > self_internal) and (friend_external > friend_internal):
-        return (
-            "External attribution pattern",
-            "You seem to explain losses mainly through outside conditions for both people. This may reduce blame, but it can also hide decision errors.",
-            9,
-        )
-    return (
-        "Mixed attribution pattern",
-        "Your answers do not show a clear self-serving pattern. That may mean your reasoning is more balanced, or simply more nuanced than a keyword check can capture.",
-        10,
-    )
-
-
-
-def q1_feedback(value: int) -> Tuple[str, str, int]:
-    if 25 <= value <= 45:
+def q1_feedback(choice: str) -> Tuple[str, str, int]:
+    if choice == "21%–40%":
         return (
             "Calibrated forecast",
-            "Your answer stays closer to real-world uncertainty. That reduces the risk of overconfidence.",
+            "Your estimate stays closer to realistic uncertainty and avoids a strongly overconfident forecast.",
             12,
         )
-    if 15 <= value <= 55:
+    if choice in {"0%–20%", "41%–60%"}:
         return (
             "Moderate confidence",
-            "Your estimate is still fairly confident, but not extreme.",
+            "Your answer is not extreme, but it still shows a meaningful level of confidence in a difficult forecast.",
             8,
         )
-    if value >= 60:
-        return (
-            "Strong overconfidence signal",
-            "A very high forecast may suggest that you are placing a lot of trust in your own forecasting ability.",
-            3,
-        )
     return (
-        "Very cautious forecast",
-        "Your answer is highly conservative. This avoids overconfidence, but it may also understate possible upside.",
-        7,
+        "Strong overconfidence signal",
+        "A very high probability range may mean you are placing too much trust in your own forecasting ability.",
+        3,
     )
-
 
 
 def q2_feedback(choice: str) -> Tuple[str, str, int]:
@@ -592,18 +643,17 @@ def q2_feedback(choice: str) -> Tuple[str, str, int]:
     )
 
 
-
-def q3_feedback(value: int) -> Tuple[str, str, int]:
-    if 12 <= value <= 20:
+def q3_feedback(choice: str) -> Tuple[str, str, int]:
+    if choice == "12%–20%":
         return (
             "Anchoring signal",
-            "Your estimate is close to last year's 15% growth. This may mean the initial figure became a mental anchor.",
+            "Your estimate stays close to last year's 15% growth, which suggests the initial number became a mental anchor.",
             3,
         )
-    if 8 <= value <= 25:
+    if choice in {"6%–11%", "21%–30%"}:
         return (
             "Mild anchoring signal",
-            "Your answer is somewhat close to the reference point. The previous year's number may still have influenced you.",
+            "You moved away from the reference point, but it may still have influenced your thinking.",
             7,
         )
     return (
@@ -613,32 +663,39 @@ def q3_feedback(value: int) -> Tuple[str, str, int]:
     )
 
 
-
-def q4_feedback(value: int) -> Tuple[str, str, int]:
-    if 5 <= value <= 25:
+def q4_feedback(choice: str) -> Tuple[str, str, int]:
+    if choice == "11%–25%":
         return (
             "Calmer risk estimate",
             "Your answer suggests that recent headlines did not dominate your estimate as much.",
             12,
         )
-    if 26 <= value <= 39:
+    if choice == "0%–10%":
+        return (
+            "Very low risk estimate",
+            "Your estimate resists media salience, though it may also understate uncertainty.",
+            9,
+        )
+    if choice == "26%–39%":
         return (
             "Possible availability effect",
             "Your answer may still reflect recent negative news, though less strongly.",
             7,
         )
-    if value >= 40:
-        return (
-            "Availability bias signal",
-            "A high failure probability may mean recent fintech failure stories became unusually vivid in memory and influenced your judgment.",
-            3,
-        )
     return (
-        "Very low risk estimate",
-        "Your estimate resists media salience, though it may also understate uncertainty.",
-        9,
+        "Availability bias signal",
+        "A high failure probability may mean recent fintech failure stories became unusually vivid in memory and influenced your judgment.",
+        3,
     )
 
+
+LIKERT_SCORE = {
+    "Strongly agree": 5,
+    "Agree": 4,
+    "Undecided": 3,
+    "Disagree": 2,
+    "Strongly disagree": 1,
+}
 
 
 def q5_feedback(choice: str) -> Tuple[str, str, int]:
@@ -662,7 +719,6 @@ def q5_feedback(choice: str) -> Tuple[str, str, int]:
     )
 
 
-
 def q6_feedback(choice: str) -> Tuple[str, str, int]:
     if choice == "Audit report":
         return (
@@ -682,6 +738,40 @@ def q6_feedback(choice: str) -> Tuple[str, str, int]:
         3,
     )
 
+
+def analyze_attribution(self_choice: str, friend_choice: str) -> Tuple[str, str, int]:
+    self_external = self_choice in {
+        "The market conditions were bad.",
+        "Unexpected news, regulation, or macro events hurt the investment.",
+    }
+    friend_external = friend_choice in {
+        "The market conditions were bad for my friend.",
+        "Unexpected news, regulation, or macro events hurt my friend's investment.",
+    }
+
+    if self_external and not friend_external:
+        return (
+            "Strong self-serving bias signal",
+            "You seem more likely to explain your own loss with outside factors, while explaining your friend's loss with personal mistakes.",
+            4,
+        )
+    if self_external and friend_external:
+        return (
+            "External attribution pattern",
+            "You explain losses mainly through outside conditions for both people. This reduces blame, but it can also hide decision errors.",
+            8,
+        )
+    if (not self_external) and (not friend_external):
+        return (
+            "More self-critical pattern",
+            "You are willing to assign personal responsibility to both yourself and your friend, which can reduce self-serving bias.",
+            12,
+        )
+    return (
+        "Mixed attribution pattern",
+        "Your answers do not show the classic self-serving pattern, although the instinct to judge yourself and others differently may still be present.",
+        10,
+    )
 
 
 def q8_feedback(choice: str) -> Tuple[str, str, int]:
@@ -704,139 +794,14 @@ def q8_feedback(choice: str) -> Tuple[str, str, int]:
     )
 
 
-BIAS_DETAILS: Dict[str, Dict[str, List[str] | str]] = {
-    "Question 1 – Overconfidence Bias": {
-        "observation": "Many students give estimates in the 60% to 90% range.",
-        "why": "People often overestimate their analysis skills, market forecasting accuracy, and ability to predict outcomes.",
-        "impact": [
-            "Taking too much risk",
-            "Trading too often",
-            "Holding losing positions for too long",
-            "Creating excessive portfolio volatility",
-            "Under-diversification",
-        ],
-        "discussion": [
-            "What emotion or logic led you to write this number?",
-            "Did you think about how difficult a one-year growth forecast actually is?",
-            "Compared with a professional analyst, is 80% accuracy really realistic?",
-            "How can overconfidence affect investment decisions?",
-        ],
-    },
-    "Question 2 – Representativeness Bias": {
-        "observation": "The answer 'Successful' is often the most common choice.",
-        "why": "The mind uses a shortcut: 'Good CEO background → good company outcome.' It sounds reasonable, but it is not a sufficient statistical basis.",
-        "impact": [
-            "Startup bubbles",
-            "Too much faith in executive charisma",
-            "Opening positions with too little data",
-            "Investing in a story instead of performance",
-        ],
-        "discussion": [
-            "What pushed you toward this option?",
-            "Is it rational to make a forecast without financial data?",
-            "Do real investors make the same mistake?",
-        ],
-    },
-    "Question 3 – Anchoring and Adjustment": {
-        "observation": "Most estimates cluster around 12% to 20%.",
-        "why": "The first number given becomes a reference point, and people usually adjust away from it too little.",
-        "impact": [
-            "Analyst target prices converging too closely",
-            "Overreliance on past performance",
-            "Slow adaptation to new information",
-            "Reluctance to rebalance portfolios",
-        ],
-        "discussion": [
-            "Was your estimate close to 15%?",
-            "Did you notice that the number influenced you?",
-            "If last year's growth had been 40%, how would your estimate change?",
-        ],
-    },
-    "Question 4 – Availability Bias": {
-        "observation": "When fintech failures are fresh in the news, students often write much higher failure probabilities.",
-        "why": "The mind uses a shortcut: 'What I heard recently is more likely.' Easily recalled information can distort judgment.",
-        "impact": [
-            "Panic selling during crises",
-            "Exaggerated risk perception",
-            "Overstating the pricing effect of news sentiment",
-        ],
-        "discussion": [
-            "What news came to mind before answering?",
-            "Would your estimate change if those stories were not fresh in memory?",
-            "How can investors protect themselves from media influence?",
-        ],
-    },
-    "Question 5 – Illusion of Control": {
-        "observation": "Many students agree with the statement.",
-        "why": "People often confuse being informed with being in control. Financial statements help, but they do not remove regulation risk, competitive pressure, or macro shocks.",
-        "impact": [
-            "Taking positions that are too large",
-            "Risk-management mistakes driven by overconfidence",
-            "Misjudging complex products",
-        ],
-        "discussion": [
-            "Does seeing financial statements really create control?",
-            "What is the difference between information and control?",
-            "Do even professional investors fall into this trap?",
-        ],
-    },
-    "Question 6 – Cognitive Conflict": {
-        "observation": "Many students choose the CFO.",
-        "why": "The mind dislikes contradiction. When information conflicts, people often prefer the simpler or more emotionally comfortable message.",
-        "impact": [
-            "Ignoring bad news",
-            "Excessive optimism",
-            "Underestimating audit reports",
-        ],
-        "discussion": [
-            "How did the CFO's optimism affect you?",
-            "Why is the audit report harder to accept?",
-            "Why is it difficult to stay rational when information conflicts?",
-        ],
-    },
-    "Question 7 – Attribution / Self-Serving Bias": {
-        "observation": "People often say 'The market was bad' for themselves, but 'They made a mistake' for others.",
-        "why": "People protect their self-image by attributing success to themselves and failure to outside factors, while judging others more harshly.",
-        "impact": [
-            "Failing to learn from personal mistakes",
-            "Distorted performance evaluation",
-            "Weaker accountability in investing",
-        ],
-        "discussion": [
-            "Why did you avoid blaming yourself?",
-            "Why is it easier to blame your friend?",
-            "How can this bias affect portfolio managers?",
-        ],
-    },
-    "Question 8 – Hindsight Bias": {
-        "observation": "Many people say the result was obvious afterward.",
-        "why": "Once an outcome happens, the brain rewrites the past and makes the event look more predictable than it really was.",
-        "impact": [
-            "Stronger overconfidence",
-            "The illusion of 'I already knew it'",
-            "Poorer future risk analysis",
-        ],
-        "discussion": [
-            "Was it really obvious at the time?",
-            "Why does it feel clearer after the event?",
-            "How does this bias affect investor psychology?",
-        ],
-    },
-}
-
-
-# -----------------------------
-# Scoring
-# -----------------------------
-
-def build_result_payload(responses: Dict) -> Dict:
+def build_result_payload(responses: Dict[str, str]) -> Dict[str, object]:
     q1_title, q1_text, q1_score = q1_feedback(responses["Q1"])
     q2_title, q2_text, q2_score = q2_feedback(responses["Q2"])
     q3_title, q3_text, q3_score = q3_feedback(responses["Q3"])
     q4_title, q4_text, q4_score = q4_feedback(responses["Q4"])
     q5_title, q5_text, q5_score = q5_feedback(responses["Q5"])
     q6_title, q6_text, q6_score = q6_feedback(responses["Q6"])
-    q7_title, q7_text, q7_score = analyze_attribution(responses["Q7a"], responses["Q7b"])
+    q7_title, q7_text, q7_score = analyze_attribution(responses["Q7A"], responses["Q7B"])
     q8_title, q8_text, q8_score = q8_feedback(responses["Q8"])
 
     breakdown = [
@@ -850,21 +815,33 @@ def build_result_payload(responses: Dict) -> Dict:
         {"Question": "Q8", "Bias": "Hindsight Bias", "Signal": q8_title, "Points": q8_score, "Explanation": q8_text},
     ]
 
-    total_score = sum(item["Points"] for item in breakdown)
     return {
-        "score": total_score,
+        "score": sum(item["Points"] for item in breakdown),
         "breakdown": breakdown,
     }
 
 
-# -----------------------------
-# Header
-# -----------------------------
+if "player_name" not in st.session_state:
+    st.session_state.player_name = ""
+if "game_started" not in st.session_state:
+    st.session_state.game_started = False
+if "game_submitted" not in st.session_state:
+    st.session_state.game_submitted = False
+if "start_ts" not in st.session_state:
+    st.session_state.start_ts = None
+if "result_payload" not in st.session_state:
+    st.session_state.result_payload = None
+if "current_step" not in st.session_state:
+    st.session_state.current_step = 0
+if "answers" not in st.session_state:
+    st.session_state.answers = {}
+
+
 st.markdown(
     """
     <div class="hero">
         <h1>FinTechX Bias Challenge</h1>
-        <p>A modern classroom game about behavioral finance. Players answer 8 questions in English, race against the clock, and appear on a shared leaderboard.</p>
+        <p>A modern classroom game about behavioral finance. All questions are now multiple choice and appear one by one on screen.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -873,11 +850,11 @@ st.markdown(
 c1, c2, c3 = st.columns([1, 1, 1])
 with c1:
     st.markdown(
-        f"""
+        """
         <div class="mini-stat">
-            <div class="label">Questions</div>
+            <div class="label">Main Questions</div>
             <div class="value">8</div>
-            <div class="sub">Question 7 includes parts A and B.</div>
+            <div class="sub">Question 7 has two short parts.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -888,7 +865,7 @@ with c2:
         <div class="mini-stat">
             <div class="label">Time Limit</div>
             <div class="value">{TIME_LIMIT_SECONDS // 60} min</div>
-            <div class="sub">Fast completion helps as a tiebreaker.</div>
+            <div class="sub">Score first, then faster time as tiebreaker.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -900,7 +877,7 @@ with c3:
         <div class="mini-stat">
             <div class="label">Leaderboard</div>
             <div class="value">{len(rows)}</div>
-            <div class="sub">Everyone can see the participant names.</div>
+            <div class="sub">Everyone can see participant names.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -920,9 +897,6 @@ st.markdown(
 st.write("")
 
 
-# -----------------------------
-# Start screen
-# -----------------------------
 if not st.session_state.game_started:
     start_col, info_col = st.columns([1.1, 0.9])
 
@@ -950,6 +924,8 @@ if not st.session_state.game_started:
                 st.session_state.game_started = True
                 st.session_state.game_submitted = False
                 st.session_state.result_payload = None
+                st.session_state.current_step = 0
+                st.session_state.answers = {}
                 st.session_state.start_ts = time.time()
                 register_player(cleaned)
                 st.rerun()
@@ -957,15 +933,16 @@ if not st.session_state.game_started:
 
     with info_col:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Scoring logic</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">How this version works</div>', unsafe_allow_html=True)
         st.markdown(
             """
-            - The app gives more points to answers that show **better bias awareness**.
+            - Every item is **multiple choice**.
+            - Questions appear **one by one**.
             - The ranking is sorted by **Score** first, then **completion time**.
             - If a player uses the same name again, the board keeps that player's **best result**.
             """
         )
-        st.info("Tip: This is still a learning activity, not a clinical or psychological diagnosis.")
+        st.info("This is a classroom learning game. The score reflects bias awareness, not investment skill.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     live_rows = get_leaderboard_rows()
@@ -979,9 +956,6 @@ if not st.session_state.game_started:
     st.stop()
 
 
-# -----------------------------
-# Active game state
-# -----------------------------
 player_name = st.session_state.player_name
 elapsed_seconds = int(time.time() - st.session_state.start_ts)
 remaining_seconds = max(0, TIME_LIMIT_SECONDS - elapsed_seconds)
@@ -1007,7 +981,7 @@ with timer_col:
     st.markdown('<div class="timer-label">Time remaining</div>', unsafe_allow_html=True)
     timer_html = f"""
     <div id="countdown" style="font-size:2rem;font-weight:800;color:white;line-height:1.15;">{minutes:02d}:{seconds:02d}</div>
-    <div style="color:#dbe7ff;font-size:0.9rem;margin-top:0.35rem;">Auto-enforced max duration: {TIME_LIMIT_SECONDS // 60} minutes</div>
+    <div style="color:#dbe7ff;font-size:0.9rem;margin-top:0.35rem;">Maximum duration: {TIME_LIMIT_SECONDS // 60} minutes</div>
     <script>
     const end = Date.now() + ({remaining_seconds} * 1000);
     const el = document.getElementById("countdown");
@@ -1030,146 +1004,90 @@ if time_is_up:
     st.error("Time is up. Your attempt has been marked as expired. You can still view the ranking table below.")
 
 
-# -----------------------------
-# Survey
-# -----------------------------
 if not st.session_state.game_submitted and not time_is_up:
+    current_step = st.session_state.current_step
+    total_steps = len(QUESTIONS)
+    question = QUESTIONS[current_step]
+    qid = str(question["id"])
+    existing_answer = st.session_state.answers.get(qid)
+    options = list(question["options"])
+    default_index = options.index(existing_answer) if existing_answer in options else None
+
     st.write("")
     st.markdown(
         """
         <div class="glass-card">
             <div class="section-title">Behavioral Finance Survey</div>
-            <div class="section-sub">Answer all questions in English. When you submit, the app calculates your bias-awareness score and places you on the leaderboard.</div>
+            <div class="section-sub">Answer one question at a time. You can move back and forth before the final submission.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    with st.form("fintechx_bias_form"):
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 1</div>', unsafe_allow_html=True)
-        q1 = st.slider(
-            "What do you estimate is the probability that FinTechX will grow by more than 20% in the next 1 year?",
-            min_value=0,
-            max_value=100,
-            value=50,
-            key="q1",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="question-card">', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="progress-meta"><div>Step {current_step + 1} of {total_steps}</div><div>{len(st.session_state.answers)} answered</div></div>',
+        unsafe_allow_html=True,
+    )
+    st.progress((current_step + 1) / total_steps)
+    st.markdown(f'<div class="question-badge">{question["badge"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="question-title">{question["title"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="question-note">{question["note"]}</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 2</div>', unsafe_allow_html=True)
-        q2 = st.radio(
-            "FinTechX's CEO is an experienced executive with a Trendyol background. Based on this, what is your first impression of the company's future performance?",
-            ["Successful", "Moderate", "Unsuccessful", "I cannot decide with this information"],
-            key="q2",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    selected_answer = st.radio(
+        "Choose one answer",
+        options,
+        index=default_index,
+        key=f"radio_{qid}",
+        label_visibility="collapsed",
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 3</div>', unsafe_allow_html=True)
-        q3 = st.slider(
-            "FinTechX grew by 15% last year. What is your growth estimate for this year?",
-            min_value=0,
-            max_value=100,
-            value=15,
-            key="q3",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    nav_left, nav_mid, nav_right = st.columns([1, 1, 1])
+    with nav_left:
+        prev_clicked = st.button("← Previous", disabled=current_step == 0, use_container_width=True)
+    with nav_mid:
+        st.caption("Only one question is shown at a time.")
+    with nav_right:
+        next_label = "Finish game and submit" if current_step == total_steps - 1 else "Next →"
+        next_clicked = st.button(next_label, use_container_width=True)
 
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 4</div>', unsafe_allow_html=True)
-        q4 = st.slider(
-            "During this period, fintech failures are frequently discussed in the media. What do you think is the probability that FinTechX will fail?",
-            min_value=0,
-            max_value=100,
-            value=25,
-            key="q4",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    if prev_clicked:
+        if selected_answer is not None:
+            st.session_state.answers[qid] = selected_answer
+        st.session_state.current_step = max(0, current_step - 1)
+        st.rerun()
 
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 5</div>', unsafe_allow_html=True)
-        q5 = st.radio(
-            '"If I can regularly access FinTechX\'s financial statements, I believe I can control my risk."',
-            ["Strongly agree", "Agree", "Undecided", "Disagree", "Strongly disagree"],
-            key="q5",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 6</div>', unsafe_allow_html=True)
-        q6 = st.radio(
-            'CFO: "The company is doing well." Audit report: "Cash flow is risky." Which source do you trust more?',
-            ["CFO", "Audit report", "Undecided"],
-            key="q6",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 7A</div>', unsafe_allow_html=True)
-        q7a = st.text_area(
-            "If you personally lost money, why do you think it happened?",
-            placeholder="Write a short explanation in English...",
-            height=120,
-            key="q7a",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 7B</div>', unsafe_allow_html=True)
-        q7b = st.text_area(
-            "If your friend lost money, why do you think it happened?",
-            placeholder="Write a short explanation in English...",
-            height=120,
-            key="q7b",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="question-card">', unsafe_allow_html=True)
-        st.markdown('<div class="question-badge">Question 8</div>', unsafe_allow_html=True)
-        q8 = st.radio(
-            "FinTechX failed. Was this outcome easy to predict?",
-            ["Yes, it was obvious", "No, it was not obvious", "Not sure"],
-            key="q8",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        submit_clicked = st.form_submit_button("Finish game and submit")
-
-    if submit_clicked:
+    if next_clicked:
         if remaining_seconds <= 0:
             mark_timeout(player_name, int(time.time() - st.session_state.start_ts))
             st.error("Submission was not accepted because the time limit expired.")
-        elif not q7a.strip() or not q7b.strip():
-            st.error("Please answer both Question 7A and Question 7B before submitting.")
+        elif selected_answer is None:
+            st.error("Please select one answer before continuing.")
         else:
-            responses = {
-                "Q1": q1,
-                "Q2": q2,
-                "Q3": q3,
-                "Q4": q4,
-                "Q5": q5,
-                "Q6": q6,
-                "Q7a": q7a,
-                "Q7b": q7b,
-                "Q8": q8,
-            }
-            result_payload = build_result_payload(responses)
-            final_elapsed = int(time.time() - st.session_state.start_ts)
-            finish_player(player_name, result_payload["score"], final_elapsed)
-            st.session_state.game_submitted = True
-            st.session_state.result_payload = {
-                **result_payload,
-                "responses": responses,
-                "elapsed_seconds": final_elapsed,
-            }
-            st.rerun()
+            st.session_state.answers[qid] = selected_answer
+            if current_step < total_steps - 1:
+                st.session_state.current_step = current_step + 1
+                st.rerun()
+            else:
+                required_ids = [str(item["id"]) for item in QUESTIONS]
+                missing = [item for item in required_ids if item not in st.session_state.answers]
+                if missing:
+                    st.error("Some answers are missing. Please review all questions before submitting.")
+                else:
+                    responses = dict(st.session_state.answers)
+                    result_payload = build_result_payload(responses)
+                    final_elapsed = int(time.time() - st.session_state.start_ts)
+                    finish_player(player_name, result_payload["score"], final_elapsed)
+                    st.session_state.game_submitted = True
+                    st.session_state.result_payload = {
+                        **result_payload,
+                        "responses": responses,
+                        "elapsed_seconds": final_elapsed,
+                    }
+                    st.rerun()
 
 
-# -----------------------------
-# Results
-# -----------------------------
 if st.session_state.game_submitted and st.session_state.result_payload:
     result_payload = st.session_state.result_payload
     responses = result_payload["responses"]
@@ -1218,34 +1136,17 @@ if st.session_state.game_submitted and st.session_state.result_payload:
         )
 
     with st.expander("See your submitted answers", expanded=False):
-        st.markdown(
-            f"""
-            - **Q1:** {responses['Q1']}%
-            - **Q2:** {responses['Q2']}
-            - **Q3:** {responses['Q3']}%
-            - **Q4:** {responses['Q4']}%
-            - **Q5:** {responses['Q5']}
-            - **Q6:** {responses['Q6']}
-            - **Q7A:** {responses['Q7a']}
-            - **Q7B:** {responses['Q7b']}
-            - **Q8:** {responses['Q8']}
-            """
-        )
+        for q in QUESTIONS:
+            qid = str(q["id"])
+            st.markdown(f"- **{q['badge']}:** {responses[qid]}")
 
-    summary_lines = [
-        "Question,Response",
-        f'Q1,"{responses["Q1"]}%"',
-        f'Q2,"{responses["Q2"]}"',
-        f'Q3,"{responses["Q3"]}%"',
-        f'Q4,"{responses["Q4"]}%"',
-        f'Q5,"{responses["Q5"]}"',
-        f'Q6,"{responses["Q6"]}"',
-        f'Q7A,"{responses["Q7a"].replace(chr(34), chr(39))}"',
-        f'Q7B,"{responses["Q7b"].replace(chr(34), chr(39))}"',
-        f'Q8,"{responses["Q8"]}"',
-        f'Score,"{result_payload["score"]}"',
-        f'Time,"{format_seconds(elapsed)}"',
-    ]
+    summary_lines = ["Question,Response"]
+    for q in QUESTIONS:
+        qid = str(q["id"])
+        answer = str(responses[qid]).replace('"', "'")
+        summary_lines.append(f'{qid},"{answer}"')
+    summary_lines.append(f'Score,"{result_payload["score"]}"')
+    summary_lines.append(f'Time,"{format_seconds(elapsed)}"')
     csv_text = "\n".join(summary_lines)
     st.download_button(
         "Download your result as CSV",
@@ -1254,10 +1155,11 @@ if st.session_state.game_submitted and st.session_state.result_payload:
         mime="text/csv",
     )
 
+    if st.button("Play again with a new attempt"):
+        reset_local_session()
+        st.rerun()
 
-# -----------------------------
-# Shared ranking table
-# -----------------------------
+
 st.divider()
 st.subheader("Final ranking table")
 leaderboard_rows = get_leaderboard_rows()
@@ -1267,9 +1169,6 @@ else:
     st.info("No finished players yet.")
 
 
-# -----------------------------
-# Teaching content
-# -----------------------------
 with st.expander("Bias explanations for classroom discussion", expanded=False):
     for title, details in BIAS_DETAILS.items():
         st.markdown(f"### {title}")
