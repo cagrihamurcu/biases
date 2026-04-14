@@ -209,7 +209,7 @@ BIAS_LIBRARY: Dict[str, Dict[str, object]] = {
             "Do real investors also buy stories too easily?",
         ],
     },
-    "Anchoring and Adjutment Bias": {
+    "Anchoring and Adjustment Bias": {
         "observation": "Answers often stay close to the 15% reference point that appeared first.",
         "why": "The first number becomes a mental anchor, and people usually adjust away from it too little.",
         "impact": [
@@ -356,7 +356,7 @@ ANSWER_NOTES = {
         "Strongly disagree": ("Strong bias resistance", "You clearly separate information access from true control over risk."),
     },
     "q6": {
-        "The CFO": ("Cognitive conflict signal", "You favored the more optimistic and human message over the tougher formal warning."),
+        "The CFO": ("Cognitive dissonance signal", "You favored the more optimistic and human message over the tougher formal warning."),
         "The audit report": ("Analytical response", "You gave more weight to the formal risk signal despite its discomfort."),
         "I need more evidence before choosing": ("Measured response", "You did not rush to resolve the tension with a simplistic answer."),
     },
@@ -1025,7 +1025,10 @@ def render_results() -> None:
         if bias not in used_biases:
             used_biases.append(bias)
     for bias in used_biases:
-        details = BIAS_LIBRARY[bias]
+        details = BIAS_LIBRARY.get(bias)
+        if not details:
+            st.warning(f"Missing bias definition: {bias}")
+            continue
         with st.expander(bias, expanded=False):
             st.markdown(f"**Observation**  \\n{details['observation']}")
             st.markdown(f"**Why this bias happens**  \\n{details['why']}")
