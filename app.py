@@ -714,18 +714,18 @@ def score_q7(q7a: str, q7b: str) -> Tuple[int, str, str]:
     friend_mixed = q7b == "A mix of market conditions and my friend's decisions"
 
     if self_external and friend_internal:
-        return 0, "Strong self-serving bias signal", "You protected yourself with outside explanations while judging your friend more personally."
+        return 0, "Strong self-attribution bias signal", "You protected yourself with outside explanations while judging your friend more personally."
     if self_mixed and friend_mixed:
-        return 5, "Balanced attribution", "You applied the same mixed standard to both people, which reduces self-serving bias."
+        return 5, "Balanced self-attribution", "You applied the same mixed standard to both people, which reduces self-serving bias."
     if self_internal and friend_internal:
         return 4, "Consistent accountability", "You used the same personal-responsibility standard for both cases."
     if self_external and friend_mixed:
-        return 2, "Mild self-serving pattern", "You were softer on yourself than on your friend, though not in the most extreme way."
+        return 2, "Mild self-attribution bias", "You were softer on yourself than on your friend, though not in the most extreme way."
     if self_mixed and friend_internal:
         return 2, "Harsh-on-others pattern", "You were somewhat tougher on your friend than on yourself."
     if self_internal and friend_external:
         return 3, "Reverse asymmetry", "You were harder on yourself than on your friend, which is unusual but still asymmetric."
-    return 3, "Mixed attribution pattern", "Your answers do not show the classic pattern strongly, but they are not perfectly balanced either."
+    return 3, "Mixed self-attribution pattern", "Your answers do not show the classic pattern strongly, but they are not perfectly balanced either."
 
 
 
