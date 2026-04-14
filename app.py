@@ -992,7 +992,7 @@ def render_results() -> None:
     bias_order = ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"]
     for key in bias_order:
         if key == "q7":
-            title = "Question 7A + 7B · Attribution / Self-Serving Bias"
+            title = "Question 7A + 7B · Self-Attribution Bias"
             choice_text = f"You: {answers.get('q7a', 'No answer')} · Friend: {answers.get('q7b', 'No answer')}"
         else:
             q = next(item for item in QUESTIONS if item["id"] == key)
