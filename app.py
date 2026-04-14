@@ -475,12 +475,38 @@ class LockedFile:
             self.handle.close()
 
 
+class DataLock:
+    def __init__(self, path: Path):
+        self.path = path
+        self.handle = None
+
+    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.handle = open(self.path, "a+", encoding="utf-8")
+        if fcntl is not None:
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX)
+        return self.handle
+
+    def __exit__(self, exc_type, exc, tb):
+        if self.handle and fcntl is not None:
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
+        if self.handle:
+            self.handle.close()
+
+
+LOCK_PATH = STORAGE_DIR / "fintechx_game_state.lock"
+
+
 
 def load_data() -> Dict[str, object]:
-    if not DATA_PATH.exists():
-        save_data(default_data())
-    with LockedFile(DATA_PATH, "r") as f:
-        raw = f.read().strip()
+    with DataLock(LOCK_PATH):
+        if not DATA_PATH.exists():
+            DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+            DATA_PATH.write_text(
+                json.dumps(default_data(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        raw = DATA_PATH.read_text(encoding="utf-8").strip()
         if not raw:
             return default_data()
         try:
@@ -494,12 +520,22 @@ def load_data() -> Dict[str, object]:
 
 
 def save_data(data: Dict[str, object]) -> None:
-    tmp_path = DATA_PATH.with_suffix(".tmp")
-    with LockedFile(tmp_path, "w") as f:
-        f.write(json.dumps(data, ensure_ascii=False, indent=2))
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp_path, DATA_PATH)
+    payload = json.dumps(data, ensure_ascii=False, indent=2)
+    with DataLock(LOCK_PATH):
+        DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=DATA_PATH.parent,
+            prefix="fintechx_state_",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp.write(payload)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+            tmp_path = Path(tmp.name)
+        os.replace(tmp_path, DATA_PATH)
 
 
 
