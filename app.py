@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -22,7 +23,13 @@ st.set_page_config(
 )
 
 MAX_DURATION = 5 * 60
-DATA_PATH = Path("/mnt/data/fintechx_game_state.json")
+STORAGE_DIR = Path(
+    os.getenv(
+        "STREAMLIT_DATA_DIR",
+        Path(tempfile.gettempdir()) / "fintechx_bias_challenge",
+    )
+)
+DATA_PATH = STORAGE_DIR / "fintechx_game_state.json"
 ACTIVE_TTL_SECONDS = 30 * 60
 
 
